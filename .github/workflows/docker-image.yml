@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: Build and Test
 
 on:
   push:
@@ -9,10 +9,38 @@ on:
 jobs:
 
   build:
-
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
+
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+      run: docker build . --file Dockerfile --tag hello-world-app:latest
+
+    - name: Save Docker image
+      run: docker save hello-world-app:latest -o hello-world-app.tar
+
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: docker-image
+        path: hello-world-app.tar
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Download Docker image artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: docker-image
+
+    - name: Load Docker image
+      run: docker load -i hello-world-app.tar
+
+    - name: Run tests in Docker container
+      run: docker run hello-world-app:latest pytest test_app.py -v
+
+    - name: Run application in Docker container
+      run: docker run hello-world-app:latest
